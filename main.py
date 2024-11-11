@@ -9,7 +9,7 @@ data: list[(int, str)] = []
 
 
 # Асинхронная прослойка
-async def save_in_model(price: int, text: str) -> None:
+async def save_in_model(price: float, text: str) -> None:
     model.add_embedding(price, text)
 
 
