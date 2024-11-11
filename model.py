@@ -1,31 +1,43 @@
-from transformers import AutoTokenizer, AutoModel
 import torch
-from sklearn.metrics.pairwise import cosine_similarity
+import os
+from transformers import AutoTokenizer, AutoModel
+from safetensors.torch import save_file, load_file
 
 
+# KEY: Price of stock
+# VALUE: Tensor of news items linked to this price
 class SimModel:
-    # Загрузка предобученной модели и токенизатора
-    def __init__(self) -> None:
-        model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
-        self._tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self._model = AutoModel.from_pretrained(model_name)
+    def __init__(self, path_to_model: str = "model.safetensors") -> None:
+        model_name = "sentence-transformers/all-MiniLM-L6-v2"
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.transformer_model = AutoModel.from_pretrained(model_name)
 
-    def _get_embedding(self, text: str) -> torch.Tensor:
-        # Токенизация и подготовка тензоров
-        inputs = self._tokenizer(
+        self._load_embeddings(path_to_model)
+
+    def _vectorize(self, text: str) -> torch.Tensor:
+        inputs = self.tokenizer(
             text, return_tensors="pt", padding=True, truncation=True
         )
         with torch.no_grad():
-            outputs = self._model(**inputs)
-        # Извлечение эмбеддинга, усредняя скрытые состояния для токенов
+            outputs = self.transformer_model(**inputs)
         embeddings = outputs.last_hidden_state.mean(dim=1)
         return embeddings
 
-    def get_similarity(self, text1: str, text2: str) -> float:
-        # Получение эмбеддингов
-        embedding1 = self._get_embedding(text1)
-        embedding2 = self._get_embedding(text2)
+    def add_embedding(self, price: int, text: str) -> None:
+        embedding = self._vectorize(text)
+        self.embeddings[price] = embedding.squeeze(0)
 
-        # Расчет косинусного сходства
-        similarity = cosine_similarity(embedding1, embedding2).item()
-        return similarity
+    def save_model(self, path: str = "model.safetensors") -> None:
+        save_file(self.embeddings, path)
+        print(f"Model saved to {path}")
+
+    def _load_embeddings(self, path: str) -> None:
+        if os.path.exists(path):
+            self.embeddings = load_file(path)
+            print(f"Model loaded from {path}")
+        else:
+            self.embeddings = {}
+            print("Model created")
+
+    def predict(self) -> None:
+        pass

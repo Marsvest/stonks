@@ -5,15 +5,16 @@ from model import SimModel
 
 # Инициалиация экземпляра модели и даты с парсера
 model = SimModel()
-data = [("example", "example"), ("test for text", "test for seq")]
+data: list[(int, str)] = []
 
 
 # Асинхронная прослойка
-async def predict(text1, text2) -> float:
-    return model.get_similarity(text1, text2)
+async def save_in_model(price: int, text: str) -> None:
+    model.add_embedding(price, text)
 
 
+# Обучение модели
 if __name__ == "__main__":
-    for text1, text2 in tqdm(data):
-        result = asyncio.run(predict(text1, text2))
+    for price, text in tqdm(data):
+        result = asyncio.run(save_in_model(price, text))
         print(result)
