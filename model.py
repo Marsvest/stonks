@@ -3,9 +3,10 @@ import os
 from transformers import AutoTokenizer, AutoModel
 from safetensors.torch import save_file, load_file
 from sklearn.metrics.pairwise import cosine_similarity
+from tqdm import tqdm
 
 
-# KEY: Price of stock
+# KEY: Percent increase or decrease of stock function after this news items
 # VALUE: Tensor of news items linked to this price
 class SimModel:
     def __init__(self, path_to_model: str = "model.safetensors") -> None:
@@ -26,9 +27,9 @@ class SimModel:
 
     def add_embedding(self, price: float, text: str) -> None:
         embedding = self._vectorize(text)
-        self.embeddings[price] = embedding
+        self.embeddings[str(price)] = embedding
 
-    def save_model(self, path: str = "model.safetensors") -> None:
+    def save(self, path: str = "model.safetensors") -> None:
         save_file(self.embeddings, path)
         print(f"Model saved to {path}")
 
@@ -44,19 +45,10 @@ class SimModel:
         input_embedding = self._vectorize(text)
 
         max_similarity = float(-1)
-        predict_price = 0
-        for price, embedding in self.embeddings.items():
+        for price, embedding in tqdm(self.embeddings.items()):
             similarity = cosine_similarity(input_embedding, embedding).item()
             if similarity > max_similarity:
                 max_similarity = similarity
                 predict_price = price
 
-        return predict_price
-
-
-if __name__ == "__main__":
-    model = SimModel()
-    model.add_embedding(100, "very big problem")
-    model.add_embedding(800, "deals coming nice i thing")
-
-    print(model.predict("problems"))
+        return float(predict_price)

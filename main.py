@@ -5,16 +5,25 @@ from model import SimModel
 
 # Инициалиация экземпляра модели и даты с парсера
 model = SimModel()
-data: list[(int, str)] = []
+data: list[(float, str)] = []
 
 
 # Асинхронная прослойка
-async def save_in_model(price: float, text: str) -> None:
+async def add_to_model(price: float, text: str) -> None:
     model.add_embedding(price, text)
 
 
 # Обучение модели
-if __name__ == "__main__":
+def train() -> None:
     for price, text in tqdm(data):
-        result = asyncio.run(save_in_model(price, text))
-        print(result)
+        asyncio.run(add_to_model(price, text))
+
+    model.save()
+
+
+if __name__ == "__main__":
+    print(
+        model.predict(
+            "Компания объявила о значительном сокращении затрат и увеличении годового прогноза прибыли."
+        )
+    )
