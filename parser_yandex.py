@@ -8,9 +8,11 @@ from bs4 import BeautifulSoup
 # URL RSS-ленты
 rss_url = 'https://ria.ru/export/rss2/archive/index.xml'
 
-# Московская временная зона
+# Установим временные границы
 moscow_tz = pytz.timezone('Europe/Moscow')
-start_time = moscow_tz.localize(datetime(2024, 11, 15, 0, 0))  # Время начала сбора с 15 ноября 2024, 00:00
+start_time_msk = moscow_tz.localize(datetime(2024, 11, 14))  # 00:00 MSK
+utc_tz = pytz.UTC
+start_time_utc = start_time_msk.astimezone(utc_tz)  # Переводим в UTC для фильтрации
 
 # Парсинг RSS-ленты
 feed = feedparser.parse(rss_url)
@@ -20,14 +22,14 @@ news_list = []
 
 # Обход по всем новостям в ленте
 for entry in feed.entries:
-    # Преобразование даты публикации в объект datetime и перевод в московское время
-    pub_date_utc = datetime(*entry.published_parsed[:6])
+    # Преобразование даты публикации в объект datetime
+    pub_date_utc = datetime(*entry.published_parsed[:6])  # Предполагаем, что это UTC
     if pub_date_utc.tzinfo is None:  # Проверка на наличие временной зоны
         pub_date_utc = pub_date_utc.replace(tzinfo=pytz.UTC)
-    pub_date_moscow = pub_date_utc.astimezone(moscow_tz)
+    pub_date_msk = pub_date_utc.astimezone(moscow_tz)  # Переводим в MSK
 
-    # Фильтрация новостей по дате и времени
-    if pub_date_moscow >= start_time:
+    # Фильтрация новостей по дате и времени (используем UTC для фильтрации)
+    if pub_date_utc >= start_time_utc:
         # Переход по ссылке для извлечения текста новости
         try:
             article_response = requests.get(entry.link)
@@ -44,22 +46,26 @@ for entry in feed.entries:
             # Объединение всех частей текста
             content = "\n".join(content_parts) if content_parts else "Текст новости не найден"
 
+            # Добавляем в список новостей только дату (в MSK) и текст новости
+            news_list.append({
+                'Дата и время (MSK)': pub_date_msk.strftime("%Y-%m-%d %H:%M:%S"),
+                'Текст новости': content
+            })
+
         except Exception as e:
             content = f"Ошибка при получении текста новости: {e}"
 
-        # Добавляем в список новостей только дату и текст новости
-        news_list.append({
-            'Дата и время': pub_date_moscow.strftime("%Y-%m-%d %H:%M:%S"),
-            'Текст новости': content
-        })
+# Проверка наличия данных перед созданием DataFrame
+if news_list:
+    # Создание DataFrame
+    df = pd.DataFrame(news_list)
 
-# Создание DataFrame
-df = pd.DataFrame(news_list)
+    # Сортировка по дате и времени
+    df_sorted = df.sort_values(by='Дата и время (MSK)', ascending=True)
 
-# Сортировка по дате и времени
-df_sorted = df.sort_values(by='Дата и время', ascending=True)
+    # Сохранение в CSV без заголовков
+    df_sorted.to_csv('ria_news_content_only.csv', index=False, encoding='utf-8', header=False)
 
-# Сохранение в CSV без заголовков
-df_sorted.to_csv('ria_news_content_only2.csv', index=False, encoding='utf-8', header=False)
-
-print("Сбор и сортировка новостей завершены.")
+    print("Сбор и сортировка новостей завершены.")
+else:
+    print("Список новостей пуст.")
