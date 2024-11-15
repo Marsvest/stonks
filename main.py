@@ -22,8 +22,5 @@ def train() -> None:
 
 
 if __name__ == "__main__":
-    print(
-        model.predict(
-            "Компания объявила о значительном сокращении затрат и увеличении годового прогноза прибыли."
-        )
-    )
+    # train()
+    print(model.predict(""))
